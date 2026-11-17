@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.env
+*.pem
+*.key
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+.DS_Store
