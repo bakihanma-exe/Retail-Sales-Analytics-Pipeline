@@ -1,14 +1,23 @@
-# Databricks / PySpark notebook: Bronze ingestion starter
+# Databricks / PySpark notebook: AdventureWorks Bronze ingestion
 from pyspark.sql import functions as F
 from pathlib import Path
 
-# Change these paths for your workspace / ADLS Gen2 environment.
+# Download the ten source CSVs into this folder before running locally.
+# In Azure, replace these paths with ADLS Gen2 locations.
 SOURCE_DIR = "data/raw"
 BRONZE_DIR = "data/bronze"
 
 source_files = [
-    "Product.csv", "Region.csv", "Reseller.csv", "Sales.csv",
-    "Salesperson.csv", "SalespersonRegion.csv", "Target.csv"
+    "AdventureWorks_Calendar.csv",
+    "AdventureWorks_Customers.csv",
+    "AdventureWorks_Product_Categories.csv",
+    "AdventureWorks_Product_Subcategories.csv",
+    "AdventureWorks_Products.csv",
+    "AdventureWorks_Returns.csv",
+    "AdventureWorks_Sales_2015.csv",
+    "AdventureWorks_Sales_2016.csv",
+    "AdventureWorks_Sales_2017.csv",
+    "AdventureWorks_Territories.csv",
 ]
 
 for file_name in source_files:
@@ -33,5 +42,6 @@ for file_name in source_files:
 
     print(f"Ingested {file_name}: {bronze_df.count()} rows")
 
-# Production note: use explicit schemas, cloud storage paths, run IDs,
-# and idempotent batch handling instead of relying on inferSchema + append.
+# Production note: prefer explicit schemas, a run ID, and an idempotent
+# write strategy. This local starter writes Delta; the supplied walkthrough
+# describes raw CSV landing in ADLS Bronze.
