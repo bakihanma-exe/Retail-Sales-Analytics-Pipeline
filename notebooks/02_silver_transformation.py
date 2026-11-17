@@ -15,8 +15,12 @@ def clean_column_names(df):
             df = df.withColumnRenamed(old_name, new_name)
     return df
 
+spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
+
 def write_delta(df, name):
-    df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(f"{SILVER_DIR}/{name}")
+    (df.write.format("delta").mode("overwrite")
+       .option("overwriteSchema", "true")
+       .saveAsTable(f"silver.{name}"))
 
 # Calendar: source Date values are M/d/yyyy (example: 1/1/2015).
 calendar = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/adventureworks_calendar"))
