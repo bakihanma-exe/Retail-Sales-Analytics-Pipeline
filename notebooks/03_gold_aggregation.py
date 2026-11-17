@@ -18,7 +18,7 @@ product_hierarchy = (products
 
 sales_enriched = (sales
     .join(product_hierarchy, "product_key", "left")
-    .join(territories, "territory_key", "left")
+    .join(territories, sales["territory_key"] == territories["sales_territory_key"], "left")
     .withColumn("estimated_gross_sales",
                 F.col("product_price").cast("double") * F.col("order_quantity").cast("double")))
 
