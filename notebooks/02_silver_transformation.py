@@ -47,8 +47,8 @@ products = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/adv
 if "product_sku" in products.columns:
     products = products.withColumn(
         "derived_product_size",
-        F.when(F.regexp_extract("product_sku", r"-([A-Z0-9]+)$", 1) != "",
-               F.regexp_extract("product_sku", r"-([A-Z0-9]+)$", 1))
+        F.when(F.regexp_extract("product_sku", r"-(XS|S|M|L|XL|XXL)$", 1) != "",
+               F.regexp_extract("product_sku", r"-(XS|S|M|L|XL|XXL)$", 1))
          .otherwise(F.lit("Not Applicable"))
     )
 if "product_size" in products.columns:
