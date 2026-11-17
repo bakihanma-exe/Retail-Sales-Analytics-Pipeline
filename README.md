@@ -1,49 +1,41 @@
 # Retail Sales Analytics Pipeline
 
-An end-to-end retail analytics project demonstrating incremental ingestion, a Bronze-Silver-Gold lakehouse pattern, PySpark transformations, data quality checks, and business-facing SQL analysis.
+A portfolio reconstruction based on the AdventureWorks retail dataset and the Azure medallion pipeline described in the supplied project document.
 
-> **Project status:** This repository is a practical implementation and learning portfolio. Update the status and screenshots as each component is executed in your own Azure environment. The design documents are not proof of a deployed cloud environment.
+> **Status:** Repository starter implementation. The source document describes an Azure Data Factory → ADLS Gen2 → Databricks → Synapse Serverless SQL flow. This repository contains code and configuration examples; it does not claim that an Azure environment has been deployed or executed.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  A[Retail CSV sources] --> B[Azure Data Factory]
-  B --> C[ADLS Gen2 - Bronze]
-  C --> D[Azure Databricks / PySpark]
-  D --> E[Silver Delta]
-  E --> F[Gold Delta]
-  F --> G[Power BI]
-```
+![AdventureWorks Azure data pipeline](architecture/architecture.svg)
 
-## Data domains
-Product, Region, Reseller, Sales, Salesperson, Salesperson Region, and Target.
+Source: AdventureWorks CSV files hosted in [the dataset repository](https://github.com/anshlambaoldgit/Adventure-Works-Data-Engineering-Project/tree/main/Data). See [source manifest](data/source-manifest.json).
+
+## Pipeline flow
+1. ADF HTTP linked service reads source files from GitHub.
+2. ADF Lookup reads a JSON parameter file; ForEach passes each file URL and sink path to a parameterized Copy Activity.
+3. ADLS Gen2 stores the raw files in Bronze.
+4. Databricks / PySpark transforms Calendar, Customers, Products, and Sales data into Silver.
+5. Synapse Serverless SQL uses OPENROWSET over Silver Parquet files and exposes Gold-layer views.
+6. Power BI can consume the curated views.
 
 ## Repository guide
-- `adf/`: incremental ingestion and watermark design
-- `notebooks/`: PySpark Bronze, Silver, and Gold processing examples
-- `sql/`: validation and business analysis queries
+- `adf/`: parameterized ingestion design, configuration, and watermark example (watermark is an optional enhancement, not shown in the supplied document)
+- `notebooks/`: PySpark Bronze and Silver examples
+- `synapse/`: Gold-layer Serverless SQL view templates
+- `sql/`: data validation and business analysis queries
 - `tests/`: reusable data-quality checks
 - `powerbi/`: dashboard wireframe and KPI definitions
-- `architecture/`: architecture notes
-- `data/`: expected source-file layout (source data is not committed)
+- `architecture/`: architecture notes and diagram
+- `data/`: source manifest and dataset instructions
 
 ## Run locally
-1. Install Python 3.10+ and Java compatible with your PySpark version.
-2. Create a virtual environment and install dependencies: `pip install -r requirements.txt`.
-3. Place the seven source CSVs under `data/raw/` (see `data/README.md`).
-4. Open the notebooks in a Spark environment and update the input/output paths for your environment.
-5. Run Bronze, then Silver, then Gold.
+1. Install Python 3.10+ and a compatible Java runtime.
+2. Install dependencies: `pip install -r requirements.txt`.
+3. Download the permitted AdventureWorks CSV files into `data/raw/` (see `data/README.md`).
+4. Run the notebooks in a Spark environment after checking the source column names and updating paths.
+5. For Azure deployment, configure ADF, ADLS Gen2, Databricks, and Synapse using your own subscription and secure identity configuration.
 
-The notebooks use local paths as a starter. For Azure deployment, configure ADLS Gen2 access using a managed identity / Databricks Access Connector and Unity Catalog external locations rather than embedding credentials.
+## Scope and honesty
+The supplied document demonstrates parameterized full-file ingestion, PySpark transformations, and Synapse Serverless SQL views. It does **not** document a watermark-based incremental load, a full dimensional star-schema build, Unity Catalog, or a Power BI dashboard implementation. Those are possible extensions, not source-documented completed steps.
 
-## Key engineering concepts
-- Incremental ingestion with a persisted watermark
-- Idempotent processing and retry considerations
-- Delta Lake Bronze / Silver / Gold layers
-- Schema and data-quality validation
-- Window functions for top-N analysis
-- Sales-versus-target reporting
-
-## Important
-No customer or company confidential data is included. Add only datasets you are permitted to share. Do not commit secrets, access keys, tokens, or raw personal data.
+Do not commit secrets, access keys, tokens, or private/customer data.
