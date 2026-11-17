@@ -18,3 +18,5 @@ Dataset repository: https://github.com/anshlambaoldgit/Adventure-Works-Data-Engi
 Download the files into `data/raw/` while preserving the filenames. The original document's screenshot shows a GitHub URL with an older account name; the link above is the currently discoverable repository location. Confirm file availability and column names before running the notebooks.
 
 Raw data is excluded from Git. Do not commit licensed, personal, or confidential data unless redistribution is permitted.
+## Download
+Run `bash scripts/download_adventureworks.sh` from the repository root. The script downloads only the ten filenames in the source manifest from the linked public GitHub dataset repository. Then run the source contract tests.
