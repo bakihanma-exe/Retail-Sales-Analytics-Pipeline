@@ -33,7 +33,8 @@ Source: AdventureWorks CSV files hosted in [the dataset repository](https://gith
 2. Install dependencies: `pip install -r requirements.txt`.
 3. Download the permitted AdventureWorks CSV files into `data/raw/` (see `data/README.md`).
 4. Run the notebooks in a Spark environment after checking the source column names and updating paths.
-5. For Azure deployment, configure ADF, ADLS Gen2, Databricks, and Synapse using your own subscription and secure identity configuration.
+5. Run source contract checks after downloading the CSVs: `python -m unittest discover -s tests -p "test_*.py" -v`.
+6. For Azure deployment, configure ADF, ADLS Gen2, Databricks, and Synapse using your own subscription and secure identity configuration.
 
 ## Scope and honesty
 The supplied document demonstrates parameterized full-file ingestion, PySpark transformations, and Synapse Serverless SQL views. It does **not** document a watermark-based incremental load, a full dimensional star-schema build, Unity Catalog, or a Power BI dashboard implementation. Those are possible extensions, not source-documented completed steps.
