@@ -1,0 +1,18 @@
+{
+  "dataset": "AdventureWorks",
+  "repository": "https://github.com/anshlambaoldgit/Adventure-Works-Data-Engineering-Project/tree/main/Data",
+  "http_raw_base": "https://raw.githubusercontent.com/anshlambaoldgit/Adventure-Works-Data-Engineering-Project/main/Data",
+  "files": [
+    "AdventureWorks_Calendar.csv",
+    "AdventureWorks_Customers.csv",
+    "AdventureWorks_Product_Categories.csv",
+    "AdventureWorks_Product_Subcategories.csv",
+    "AdventureWorks_Products.csv",
+    "AdventureWorks_Returns.csv",
+    "AdventureWorks_Sales_2015.csv",
+    "AdventureWorks_Sales_2016.csv",
+    "AdventureWorks_Sales_2017.csv",
+    "AdventureWorks_Territories.csv"
+  ],
+  "note": "Confirm the upstream file paths and schemas before execution. Raw source data is not copied into this repository."
+}
