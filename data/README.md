@@ -1,15 +1,20 @@
-# Source data
+# AdventureWorks source data
 
-Place permitted retail CSV extracts in this folder under `raw/`. Expected logical files:
+The supplied Azure project document identifies the open-source **Adventure Works** dataset and lists these ten CSVs:
 
-- Product.csv
-- Region.csv
-- Reseller.csv
-- Sales.csv
-- Salesperson.csv
-- SalespersonRegion.csv
-- Target.csv
+1. `AdventureWorks_Calendar.csv`
+2. `AdventureWorks_Customers.csv`
+3. `AdventureWorks_Product_Categories.csv`
+4. `AdventureWorks_Product_Subcategories.csv`
+5. `AdventureWorks_Products.csv`
+6. `AdventureWorks_Returns.csv`
+7. `AdventureWorks_Sales_2015.csv`
+8. `AdventureWorks_Sales_2016.csv`
+9. `AdventureWorks_Sales_2017.csv`
+10. `AdventureWorks_Territories.csv`
 
-The exact filenames, column names, data types, and primary keys must be confirmed against the dataset you use. Do not assume the sample column names in SQL/notebooks match every retail dataset.
+Dataset repository: https://github.com/anshlambaoldgit/Adventure-Works-Data-Engineering-Project/tree/main/Data
 
-Raw data is intentionally excluded from Git using `.gitignore`. Do not commit confidential, personal, or licensed data unless redistribution is allowed.
+Download the files into `data/raw/` while preserving the filenames. The original document's screenshot shows a GitHub URL with an older account name; the link above is the currently discoverable repository location. Confirm file availability and column names before running the notebooks.
+
+Raw data is excluded from Git. Do not commit licensed, personal, or confidential data unless redistribution is permitted.
