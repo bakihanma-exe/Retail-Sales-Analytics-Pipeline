@@ -1,4 +1,5 @@
-# Databricks / PySpark notebook: Silver transformation helpers
+# Databricks / PySpark notebook: AdventureWorks Silver transformations
+import re
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
@@ -6,42 +7,79 @@ BRONZE_DIR = "data/bronze"
 SILVER_DIR = "data/silver"
 
 def clean_column_names(df):
-    """Normalize column names for consistent downstream references."""
+    """Convert CamelCase / spaces to snake_case."""
     for old_name in df.columns:
-        new_name = (old_name.strip().lower()
-                    .replace(" ", "_").replace("-", "_"))
+        new_name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", old_name.strip())
+        new_name = re.sub(r"[^A-Za-z0-9]+", "_", new_name).strip("_").lower()
         if old_name != new_name:
             df = df.withColumnRenamed(old_name, new_name)
     return df
 
-def trim_string_columns(df):
-    for field in df.schema.fields:
-        if field.dataType.simpleString() == "string":
-            df = df.withColumn(field.name, F.trim(F.col(field.name)))
-    return df
+def write_delta(df, name):
+    df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(f"{SILVER_DIR}/{name}")
 
-def currency_to_decimal(df, column_name):
-    """Remove currency symbols/commas and cast to a decimal."""
-    cleaned = F.regexp_replace(F.col(column_name), r"[$,]", "")
-    return df.withColumn(column_name, cleaned.cast("decimal(18,2)"))
+# Calendar: source Date values are M/d/yyyy (example: 1/1/2015).
+calendar = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/adventureworks_calendar"))
+calendar = (calendar
+    .withColumn("date", F.to_date("date", "M/d/yyyy"))
+    .withColumn("month", F.month("date"))
+    .withColumn("year", F.year("date")))
+write_delta(calendar, "calendar")
 
-def parse_date_column(df, column_name, fmt="yyyy-MM-dd"):
-    return df.withColumn(column_name, F.to_date(F.col(column_name), fmt))
+# Customers: the source document describes FullName = Prefix + FirstName + LastName.
+customers = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/adventureworks_customers"))
+customer_columns = set(customers.columns)
+name_parts = [c for c in ["prefix", "firstname", "lastname"] if c in customer_columns]
+# After snake_case normalization these names become prefix, first_name, last_name.
+name_parts = [c for c in ["prefix", "first_name", "last_name"] if c in customer_columns]
+if "first_name" in customer_columns and "last_name" in customer_columns:
+    pieces = [F.col(c) for c in name_parts]
+    customers = customers.withColumn("full_name", F.concat_ws(" ", *pieces))
+    customers = customers.drop(*[c for c in ["prefix", "first_name", "last_name"] if c in customers.columns])
+write_delta(customers, "customers")
 
-def deduplicate_by_key(df, key_columns, order_column=None):
-    """Keep the latest record per key when an ordering column is supplied."""
-    if not order_column:
-        return df.dropDuplicates(key_columns)
-    w = Window.partitionBy(*key_columns).orderBy(F.col(order_column).desc_nulls_last())
-    return (df.withColumn("_rn", F.row_number().over(w))
-              .filter(F.col("_rn") == 1)
-              .drop("_rn"))
+# Product: retain source columns and derive size from ProductSKU where possible.
+products = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/adventureworks_products"))
+if "product_sku" in products.columns:
+    products = products.withColumn(
+        "derived_product_size",
+        F.when(F.regexp_extract("product_sku", r"-([A-Z0-9]+)$", 1) != "",
+               F.regexp_extract("product_sku", r"-([A-Z0-9]+)$", 1))
+         .otherwise(F.lit("Not Applicable"))
+    )
+if "product_size" in products.columns:
+    products = products.withColumn("product_size", F.when(
+        F.col("product_size").isNull() | (F.trim(F.col("product_size")) == "") | (F.col("product_size") == "0"),
+        F.lit("Not Applicable")).otherwise(F.col("product_size")))
+write_delta(products, "products")
 
-# Example: adapt table name, keys, and date/amount columns to your dataset.
-# sales = spark.read.format("delta").load(f"{BRONZE_DIR}/sales")
-# sales = clean_column_names(sales)
-# sales = trim_string_columns(sales)
-# sales = currency_to_decimal(sales, "sales_amount")
-# sales = parse_date_column(sales, "order_date")
-# sales = deduplicate_by_key(sales, ["sales_id"], "modified_date")
-# sales.write.format("delta").mode("overwrite").save(f"{SILVER_DIR}/sales")
+# Small reference entities.
+for source_name, target_name in [
+    ("adventureworks_product_categories", "product_categories"),
+    ("adventureworks_product_subcategories", "product_subcategories"),
+    ("adventureworks_territories", "territories"),
+    ("adventureworks_returns", "returns"),
+]:
+    df = clean_column_names(spark.read.format("delta").load(f"{BRONZE_DIR}/{source_name}"))
+    write_delta(df, target_name)
+
+# Sales: combine yearly files, normalize order number, derive line quantity and timestamp.
+sales_paths = [
+    f"{BRONZE_DIR}/adventureworks_sales_2015",
+    f"{BRONZE_DIR}/adventureworks_sales_2016",
+    f"{BRONZE_DIR}/adventureworks_sales_2017",
+]
+sales_frames = [clean_column_names(spark.read.format("delta").load(p)) for p in sales_paths]
+sales = sales_frames[0]
+for frame in sales_frames[1:]:
+    sales = sales.unionByName(frame, allowMissingColumns=True)
+
+sales = (sales
+    .withColumn("order_number", F.regexp_replace("order_number", r"^SO", "ON"))
+    .withColumn("order_date", F.to_timestamp("order_date", "M/d/yyyy"))
+    .withColumn("stock_date", F.to_timestamp("stock_date", "M/d/yyyy"))
+    .withColumn("order_line_quantity", F.col("order_line_item").cast("int") * F.col("order_quantity").cast("int")))
+write_delta(sales, "sales")
+
+# Production improvement: add explicit schemas, quarantine invalid rows,
+# deterministic duplicate rules, and idempotent Delta MERGE where appropriate.
