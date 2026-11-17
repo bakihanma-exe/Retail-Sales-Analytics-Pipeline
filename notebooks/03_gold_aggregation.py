@@ -4,12 +4,13 @@ from pyspark.sql.window import Window
 
 SILVER_DIR = "data/silver"
 GOLD_DIR = "data/gold"
+spark.sql("CREATE SCHEMA IF NOT EXISTS gold")
 
-sales = spark.read.format("delta").load(f"{SILVER_DIR}/sales")
-products = spark.read.format("delta").load(f"{SILVER_DIR}/products")
-subcategories = spark.read.format("delta").load(f"{SILVER_DIR}/product_subcategories")
-categories = spark.read.format("delta").load(f"{SILVER_DIR}/product_categories")
-territories = spark.read.format("delta").load(f"{SILVER_DIR}/territories")
+sales = spark.table("silver.sales")
+products = spark.table("silver.products")
+subcategories = spark.table("silver.product_subcategories")
+categories = spark.table("silver.product_categories")
+territories = spark.table("silver.territories")
 
 # Sales source has quantity but no sales amount. Estimate gross sales using ProductPrice.
 product_hierarchy = (products
@@ -30,7 +31,7 @@ monthly_sales = (sales_enriched
     .agg(F.sum("order_quantity").alias("total_quantity"),
          F.sum("estimated_gross_sales").alias("estimated_gross_sales")))
 
-monthly_sales.write.format("delta").mode("overwrite").save(f"{GOLD_DIR}/monthly_sales")
+monthly_sales.write.format("delta").mode("overwrite").saveAsTable("gold.monthly_sales")
 
 # Territory performance as described in the source walkthrough.
 territory_sales = (sales_enriched
@@ -38,7 +39,7 @@ territory_sales = (sales_enriched
     .agg(F.sum("order_quantity").alias("total_order_quantity"),
          F.sum("estimated_gross_sales").alias("estimated_gross_sales")))
 
-territory_sales.write.format("delta").mode("overwrite").save(f"{GOLD_DIR}/territory_performance")
+territory_sales.write.format("delta").mode("overwrite").saveAsTable("gold.territory_performance")
 
 # Product/category ranking (extension to the source document).
 category_product_sales = (sales_enriched
@@ -50,10 +51,10 @@ top_products = (category_product_sales
     .withColumn("sales_rank", F.dense_rank().over(w))
     .filter(F.col("sales_rank") <= 5))
 
-top_products.write.format("delta").mode("overwrite").save(f"{GOLD_DIR}/top_products_by_category")
+top_products.write.format("delta").mode("overwrite").saveAsTable("gold.top_products_by_category")
 
 # Returns overview; returns are counts/quantities, not negative sales rows.
-returns = spark.read.format("delta").load(f"{SILVER_DIR}/returns")
+returns = spark.table("silver.returns")
 returns_summary = (returns.groupBy("territory_key", "product_key")
     .agg(F.sum("return_quantity").alias("total_return_quantity")))
-returns_summary.write.format("delta").mode("overwrite").save(f"{GOLD_DIR}/returns_summary")
+returns_summary.write.format("delta").mode("overwrite").saveAsTable("gold.returns_summary")
