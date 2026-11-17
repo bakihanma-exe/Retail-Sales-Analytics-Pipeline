@@ -1,25 +1,34 @@
 # Architecture and design
 
 ## End-to-end flow
-1. Retail CSV extracts are landed in a source location.
-2. Azure Data Factory orchestrates incremental copy using a watermark.
-3. Raw records are retained in the Bronze layer with ingestion metadata.
-4. Databricks / PySpark standardizes types, cleans values, and applies quality rules in Silver.
-5. Gold produces business aggregates and dimensional reporting tables.
-6. Power BI consumes curated Gold outputs.
+1. AdventureWorks CSV files are hosted in a public GitHub dataset repository.
+2. Azure Data Factory uses an HTTP linked service, Lookup, ForEach, and parameterized Copy Activity to land files in ADLS Gen2 Bronze.
+3. Azure Databricks reads Bronze data and applies PySpark transformations into Silver.
+4. Azure Synapse Serverless SQL queries Silver Parquet files with OPENROWSET and exposes Gold-layer views.
+5. Power BI can consume the curated views (the supplied document describes downstream use, but does not show a completed dashboard).
 
 ## Lakehouse layers
-| Layer | Purpose | Typical contents |
+| Layer | Purpose | Documented implementation |
 |---|---|---|
-| Bronze | Preserve source fidelity | Raw CSV-derived Delta tables, source file, ingestion timestamp |
-| Silver | Clean and conform | Standardized dates, numeric types, deduplicated records, validated keys |
-| Gold | Serve analytics | Sales summaries, product rankings, sales-versus-target metrics |
+| Bronze | Preserve source data | Raw CSV files copied to ADLS Gen2 |
+| Silver | Clean and conform | PySpark transformations written to Silver |
+| Gold | Serve analytics | Synapse Serverless SQL views over Silver Parquet |
 
-## Security design
-Use a Databricks Access Connector with managed identity to access ADLS Gen2. Register storage through Unity Catalog external locations and grant least-privilege access to the required identities. Keep secrets out of notebooks and source control.
+## Documented transformations
+- Calendar: derive Month and Year from Date.
+- Customers: concatenate name fields into FullName and drop source name fields.
+- Products: derive ProductSize from ProductSKU and fill missing values with Not Applicable.
+- Sales: aggregate OrderQuantity by TerritoryKey; replace the SO prefix in order numbers; derive an order-line quantity; convert OrderDate to timestamp.
+- Analytics examples: territory-wise performance and month/year sales analysis.
 
-## Operational considerations
-- Advance the watermark only after all intended copy work succeeds.
-- Use a half-open incremental range: greater than the previous watermark and less than or equal to the new watermark.
-- Make retries safe; avoid duplicate appends by using stable keys and Delta MERGE where appropriate.
-- Monitor row counts, failed pipeline activities, and data freshness.
+## Security in the supplied document
+The walkthrough uses an Entra ID application / service principal to connect Databricks to ADLS and grants Storage Blob Data Contributor. It also describes a managed identity for Synapse access. It does not document Unity Catalog or Databricks Access Connector configuration.
+
+## Not documented / future enhancements
+- Watermark-based incremental ingestion and CDC
+- Explicit schema contracts and automated schema-drift handling
+- Quarantine/reject path and comprehensive automated data-quality framework
+- Delta MERGE / SCD Type 2 handling
+- Formal fact/dimension star schema and tested semantic model
+- Power BI dashboard implementation and refresh configuration
+- CI/CD, monitoring/alerting, and cost/performance benchmarks
